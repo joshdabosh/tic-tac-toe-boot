@@ -8,15 +8,19 @@ use uefi::proto::console::text::*;
 use core::convert::TryInto;
 use log::info;
 
+extern crate alloc;
+
 
 #[entry]
 unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
-    uefi_services::init(&mut system_table).unwrap_success();
+    uefi_services::init(&mut system_table).unwrap();
 
     let mut state = [[0u8; 3]; 3];
 
     let mut player_x: u32 = 0;
     let mut player_y: u32 = 0;
+
+    let mut ctr = 0;
 
     loop {
         display_board(state, &mut system_table, player_x, player_y);
@@ -24,20 +28,25 @@ unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         let mut events = [
             system_table.stdin()
                 .wait_for_key_event()
-                .unsafe_clone()
+                .unwrap()
         ];
 
         system_table.boot_services()
             .wait_for_event(&mut events)
-            .unwrap_success();
+            .unwrap();
 
-        let key = system_table.stdin().read_key().unwrap_success().unwrap();
+        let key = system_table.stdin().read_key().unwrap().unwrap();
 
         match key {
             Key::Printable(ch) => {
-                if ch == '\r'.try_into().unwrap() {
+                if ch == Char16::from_u16_unchecked(0xd) {
+                    if ctr > 9 {
+                        break;
+                    }
+
+                    ctr += 1;
+
                     info!("hit enter");
-                    break;
                 }
             }
             Key::Special(ch) => {
@@ -112,9 +121,9 @@ fn display_board(
 
     let s = CStr16::from_str_with_buf(&modified_board, &mut buf).expect("failed converting to buf");
 
-    system_table.stdout().clear().unwrap_success();
+    system_table.stdout().clear().unwrap();
 
     system_table.stdout()
     .output_string(&s)
-    .unwrap_success();
+    .unwrap();
 }
