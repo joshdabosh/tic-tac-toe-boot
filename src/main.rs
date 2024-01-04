@@ -1,6 +1,8 @@
 #![no_main]
 #![no_std]
 
+mod minimax;
+
 extern crate alloc;
 
 use uefi::prelude::*;
@@ -27,6 +29,8 @@ use uefi::proto::media::file::FileInfo;
 use alloc::string::ToString;
 use alloc::format;
 use alloc::vec;
+use alloc::vec::Vec;
+use alloc::string::String;
 
 #[entry]
 unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
@@ -57,13 +61,27 @@ unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         match key {
             Key::Printable(ch) => {
                 if ch == Char16::from_u16_unchecked(0xd) {
-                    if ctr > 9 {
-                        handle_endgame(&mut system_table);
+                    state[player_y as usize][player_x as usize] = 1;
+                    ctr += 1;
+
+                    if ctr >= 9 || minimax::winner(state) == 1 {
+                        display_board(state, &mut system_table, player_x, player_y);
+                        handle_endgame(state, _handle, &mut system_table);
                     }
+
+                    let ai_move = minimax::make_ai_move(&mut state);
+
+                    let ai_col_idx = ai_move % 3;
+                    let ai_row_idx = (ai_move - ai_col_idx) / 3;
+
+                    state[ai_row_idx as usize][ai_col_idx as usize] = 2;
 
                     ctr += 1;
 
-                    info!("hit enter");
+                    if ctr >= 9 || minimax::winner(state) == 2 {
+                        display_board(state, &mut system_table, player_x, player_y);
+                        handle_endgame(state, _handle, &mut system_table);
+                    }
                 }
             }
             Key::Special(ch) => {
@@ -145,11 +163,60 @@ fn display_board(
         .unwrap();
 }
 
-fn handle_endgame(system_table: &mut SystemTable<Boot>) -> () {
-    proceed_with_boot(system_table);
+fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut SystemTable<Boot>) -> () {
+    let winner = minimax::winner(state);
+    if (winner == 2) {
+        info!("you lose");
+
+        system_table
+            .boot_services()
+            .stall(5_000_000);
+
+
+        system_table
+            .runtime_services()
+            .reset(
+                ResetType::SHUTDOWN,
+                Status::ACCESS_DENIED,
+                None
+            );
+
+    } else {
+        // continue with boot on draw...
+        info!("you win");
+        proceed_with_boot(_handle, system_table);
+    }
 }
 
-fn proceed_with_boot(system_table: &mut SystemTable<Boot>) -> () {
+fn proceed_with_boot(_handle: Handle, system_table: &mut SystemTable<Boot>) -> () {
+    let mut kernel_raw = load_kernel(system_table).unwrap();
+
+    let kernel_loaded = system_table
+        .boot_services()
+        .load_image(
+            _handle,
+            LoadImageSource::FromBuffer {
+                buffer: &mut kernel_raw,
+                file_path: None
+            }
+        )
+        .unwrap();
+
+    info!("transferring control to kernel...");
+
+    system_table
+        .boot_services()
+        .start_image(kernel_loaded)
+        .unwrap();
+    
+    system_table
+        .boot_services()
+        .stall(5000000);
+
+    return;
+}
+
+fn load_kernel(system_table: &mut SystemTable<Boot>) -> Result<Vec<u8>, String> {
     let device_path_to_text_handle = system_table
         .boot_services()
         .get_handle_for_protocol::<DevicePathToText>()
@@ -223,7 +290,7 @@ fn proceed_with_boot(system_table: &mut SystemTable<Boot>) -> () {
 
             let mut fname_buf = [0; 100];
 
-            let fname = CStr16::from_str_with_buf("EFI\\vmlinuz-linux", &mut fname_buf).unwrap();
+            let fname = CStr16::from_str_with_buf("bzImage", &mut fname_buf).unwrap();
 
             let fhandle = volume.open(fname, FileMode::Read, FileAttribute::all())
                 .map_err(|e| format!("ERROR: {e:?}")).unwrap();
@@ -236,6 +303,8 @@ fn proceed_with_boot(system_table: &mut SystemTable<Boot>) -> () {
 
             let file_size: usize = finfo.file_size().try_into().unwrap();
 
+            info!("reading {}", file_size.to_string());
+
             let mut fcontent_buf = vec![0; file_size];
 
             let read_bytes = fcontent.read(&mut fcontent_buf).unwrap();
@@ -244,10 +313,9 @@ fn proceed_with_boot(system_table: &mut SystemTable<Boot>) -> () {
                 panic!("read wrong amount of bytes from kernel");
             }
 
+            return Ok(fcontent_buf);
         }
-
-        info!("OK SO FAR");
     }
 
-    system_table.boot_services().stall(5000000);
+    return Err("error".to_string());
 }
