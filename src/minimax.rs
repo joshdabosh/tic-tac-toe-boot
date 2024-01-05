@@ -1,20 +1,22 @@
+#[path="./util.rs"]
+mod util;
+
 extern crate alloc;
 
 use alloc::vec::Vec;
 
 use log::info;
 
-pub fn make_ai_move(state: &mut [[u8; 3]; 3]) -> i32 {
-    // state[0][0] = 2;
+pub fn make_ai_move(state: &mut [[u8; 3]; 3]) -> (usize, usize) {
     let mut final_move = -1;
 
-    minimax(*state, 2, &mut final_move);
+    minimax(state, 2, &mut final_move);
 
-    return final_move;
+    util::decompress_move(final_move)
 }
 
-pub fn minimax(
-    state: [[u8; 3]; 3],
+fn minimax(
+    state: &mut [[u8; 3]; 3],
     player: i32,
     mut final_move: &mut i32
 ) -> i32 {
@@ -31,7 +33,7 @@ pub fn minimax(
 
     if available_moves.len() == 0 {
         // no more available moves, the game has ended
-        return score_game(state, player);
+        return score_game(*state, player);
     }
 
     let mut scores: Vec<i32> = Vec::new();
@@ -39,17 +41,14 @@ pub fn minimax(
 
     for m in available_moves {
         // explore move
-        let mut new_state = [[0u8; 3]; 3];
+        let (col_idx, row_idx) = util::decompress_move(m);
 
-        new_state[..3].clone_from_slice(&state);
+        state[row_idx][col_idx] = player as u8;
 
-        let col_idx: i32 = m % 3;
-        let row_idx: i32 = (m - col_idx) / 3;
-
-        new_state[row_idx as usize][col_idx as usize] = player as u8;
-
-        scores.push(minimax(new_state, (player % 2) + 1, &mut final_move));
+        scores.push(minimax(state, (player % 2) + 1, &mut final_move));
         moves.push(m);
+
+        state[row_idx][col_idx] = 0;
     }
 
     if player == 2 {
@@ -66,7 +65,7 @@ pub fn minimax(
 
         *final_move = moves[max_idx];
 
-        return max_score;
+        max_score
     } else {
         // making moves for the human
         let mut min_idx = 0;
@@ -81,7 +80,7 @@ pub fn minimax(
 
         *final_move = moves[min_idx];
 
-        return min_score;
+        min_score
     }
 }
 

@@ -6,7 +6,6 @@ mod minimax;
 extern crate alloc;
 
 use uefi::prelude::*;
-use uefi::ResultExt;
 use uefi::data_types::*;
 use uefi::proto::console::text::*;
 use uefi::table::runtime::*;
@@ -21,7 +20,6 @@ use uefi::proto::device_path::text::DisplayOnly;
 use uefi::proto::device_path::text::AllowShortcuts;
 
 use uefi::proto::media::file::File;
-use uefi::proto::media::file::RegularFile;
 use uefi::proto::media::file::FileMode;
 use uefi::proto::media::file::FileAttribute;
 use uefi::proto::media::file::FileInfo;
@@ -41,7 +39,7 @@ unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     let mut player_x: u32 = 0;
     let mut player_y: u32 = 0;
 
-    let mut ctr = 0;
+    let mut move_counter = 0;
 
     loop {
         display_board(state, &mut system_table, player_x, player_y);
@@ -61,24 +59,25 @@ unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         match key {
             Key::Printable(ch) => {
                 if ch == Char16::from_u16_unchecked(0xd) {
-                    state[player_y as usize][player_x as usize] = 1;
-                    ctr += 1;
+                    if state[player_y as usize][player_x as usize] != 0 {
+                        continue;
+                    }
 
-                    if ctr >= 9 || minimax::winner(state) == 1 {
+                    state[player_y as usize][player_x as usize] = 1;
+                    move_counter += 1;
+
+                    if move_counter >= 9 || minimax::winner(state) == 1 {
                         display_board(state, &mut system_table, player_x, player_y);
                         handle_endgame(state, _handle, &mut system_table);
                     }
 
-                    let ai_move = minimax::make_ai_move(&mut state);
+                    let (ai_row_idx, ai_col_idx) = minimax::make_ai_move(&mut state);
+                    
+                    state[ai_row_idx][ai_col_idx] = 2;
 
-                    let ai_col_idx = ai_move % 3;
-                    let ai_row_idx = (ai_move - ai_col_idx) / 3;
+                    move_counter += 1;
 
-                    state[ai_row_idx as usize][ai_col_idx as usize] = 2;
-
-                    ctr += 1;
-
-                    if ctr >= 9 || minimax::winner(state) == 2 {
+                    if move_counter >= 9 || minimax::winner(state) == 2 {
                         display_board(state, &mut system_table, player_x, player_y);
                         handle_endgame(state, _handle, &mut system_table);
                     }
@@ -106,9 +105,6 @@ unsafe fn main(_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         }
 
     }
-    
-
-    Status::SUCCESS
 }
 
 fn display_board(
@@ -165,7 +161,7 @@ fn display_board(
 
 fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut SystemTable<Boot>) -> () {
     let winner = minimax::winner(state);
-    if (winner == 2) {
+    if winner == 2 {
         info!("you lose");
 
         system_table
@@ -203,15 +199,13 @@ fn proceed_with_boot(_handle: Handle, system_table: &mut SystemTable<Boot>) -> (
         .unwrap();
 
     info!("transferring control to kernel...");
-
+    
     system_table
         .boot_services()
         .start_image(kernel_loaded)
         .unwrap();
     
-    system_table
-        .boot_services()
-        .stall(5000000);
+    info!("asdf");
 
     return;
 }
@@ -278,7 +272,7 @@ fn load_kernel(system_table: &mut SystemTable<Boot>) -> Result<Vec<u8>, String> 
                 continue;
             }
 
-            let mut loaded = system_table
+            let loaded = system_table
                 .boot_services()
                 .open_protocol_exclusive::<SimpleFileSystem>(can_load_fs.unwrap());
 
