@@ -2,6 +2,7 @@
 #![no_std]
 
 mod minimax;
+mod util;
 
 extern crate alloc;
 
@@ -113,8 +114,6 @@ fn display_board(
     player_x: u32,
     player_y: u32
 ) -> () {
-    let mut buf = [0; 1000];
-
     let text_board = "         |         |         \r
     1    |    2    |    3    \r
          |         |         \r
@@ -150,23 +149,32 @@ fn display_board(
         }
     }
 
-    let s = CStr16::from_str_with_buf(&modified_board, &mut buf).expect("failed converting to buf");
-
-    system_table.stdout().clear().unwrap();
-
-    system_table.stdout()
-        .output_string(&s)
-        .unwrap();
+    util::print_string_literal(system_table, &modified_board);
 }
 
 fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut SystemTable<Boot>) -> () {
-    let winner = minimax::winner(state);
-    if winner == 2 {
-        info!("you lose");
 
-        system_table
-            .boot_services()
-            .stall(5_000_000);
+    util::pause_execution(system_table, 1_000_000);
+
+    let winner = minimax::winner(state);
+
+    if winner == 2 {
+        let sad_face = "     .-\"\"\"\"\"\"-.
+   .'          '.
+  /   O      O   \\
+ :                :
+ |                |
+ :    .------.    :
+  \\  '        '  /
+   '.          .'
+     '-......-'
+     
+      YOU LOSE
+";
+
+        util::print_string_literal(system_table, sad_face);
+
+        util::pause_execution(system_table, 5_000_000);
 
 
         system_table
@@ -179,7 +187,26 @@ fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut Syste
 
     } else {
         // continue with boot on draw...
-        info!("you win");
+        let happy_face = "     .-\"\"\"\"\"\"-.
+   .'          '.
+  /   O      O   \\
+ :                :
+ |                |
+ : ',          ,' :
+  \\  '-......-'  /
+   '.          .'
+     '-......-'
+     
+      YOU WIN
+
+";
+
+        util::print_string_literal(system_table, happy_face);
+
+        util::pause_execution(system_table, 5_000_000);
+
+        
+
         proceed_with_boot(_handle, system_table);
     }
 }
@@ -204,8 +231,6 @@ fn proceed_with_boot(_handle: Handle, system_table: &mut SystemTable<Boot>) -> (
         .boot_services()
         .start_image(kernel_loaded)
         .unwrap();
-    
-    info!("asdf");
 
     return;
 }
@@ -297,7 +322,7 @@ fn load_kernel(system_table: &mut SystemTable<Boot>) -> Result<Vec<u8>, String> 
 
             let file_size: usize = finfo.file_size().try_into().unwrap();
 
-            info!("reading {}", file_size.to_string());
+            info!("reading {} bytes", file_size.to_string());
 
             let mut fcontent_buf = vec![0; file_size];
 

@@ -41,7 +41,7 @@ fn minimax(
 
     for m in available_moves {
         // explore move
-        let (col_idx, row_idx) = util::decompress_move(m);
+        let (row_idx, col_idx) = util::decompress_move(m);
 
         state[row_idx][col_idx] = player as u8;
 
