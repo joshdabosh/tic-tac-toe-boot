@@ -159,18 +159,16 @@ fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut Syste
     let winner = minimax::winner(state);
 
     if winner == 2 {
-        let sad_face = "     .-\"\"\"\"\"\"-.
-   .'          '.
-  /   O      O   \\
- :                :
- |                |
- :    .------.    :
-  \\  '        '  /
-   '.          .'
-     '-......-'
-     
-      YOU LOSE
-";
+        let sad_face = "     .-\"\"\"\"\"\"-.\r
+   .'          '.\r
+  /   O      O   \\\r
+ :                :\r
+ |                |\r
+ :    .------.    :\r
+  \\  '        '  /\r
+   '.          .'\r
+     '-......-'\r\r\n
+      YOU LOSE\r\n";
 
         util::print_string_literal(system_table, sad_face);
 
@@ -187,19 +185,17 @@ fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut Syste
 
     } else {
         // continue with boot on draw...
-        let happy_face = "     .-\"\"\"\"\"\"-.
-   .'          '.
-  /   O      O   \\
- :                :
- |                |
- : ',          ,' :
-  \\  '-......-'  /
-   '.          .'
-     '-......-'
-     
-      YOU WIN
-
-";
+        let happy_face = "     .-\"\"\"\"\"\"-.\r
+   .'          '.\r
+  /   O      O   \\\r
+ :                :\r
+ |                |\r
+ : ',          ,' :\r
+  \\  '-......-'  /\r
+   '.          .'\r
+     '-......-'\r
+     \r\r\n
+      YOU WIN\r\n";
 
         util::print_string_literal(system_table, happy_face);
 

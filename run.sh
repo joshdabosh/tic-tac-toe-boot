@@ -2,9 +2,7 @@
 
 uefi-run \
     --boot ./uefi_app.efi \
-    --add-file grub.efi:/bzImage \
-    --add-file grub.cfg:/grub.cfg \
+    --add-file bzImage:/bzImage \
     --size 350 \
     -- -m 4G \
-        -enable-kvm \
-        -nographic
+        -enable-kvm
