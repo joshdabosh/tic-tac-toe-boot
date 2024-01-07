@@ -120,7 +120,7 @@ pub fn winner(
         }
 
         if o_count == 3 {
-            return 0;
+            return 2;
         }
 
         x_count = 0;
@@ -144,7 +144,7 @@ pub fn winner(
         }
 
         if o_count == 3 {
-            return 0;
+            return 2;
         }
 
         x_count = 0;

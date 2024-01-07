@@ -1,8 +1,8 @@
 #!/bin/bash
 
 uefi-run \
-    --boot ./uefi_app.efi \
+    --boot ./target/x86_64-unknown-uefi/debug/uefi_app.efi \
     --add-file bzImage:/bzImage \
-    --size 350 \
-    -- -m 4G \
+    --size 30 \
+    -- -m 512M \
         -enable-kvm
