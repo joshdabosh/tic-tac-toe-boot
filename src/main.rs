@@ -114,7 +114,7 @@ fn display_board(
     player_x: u32,
     player_y: u32
 ) -> () {
-    let text_board = "         |         |         \r
+    let mut text_board = String::from("         |         |         \r
     1    |    2    |    3    \r
          |         |         \r
 -----------------------------\r
@@ -124,22 +124,20 @@ fn display_board(
 -----------------------------\r
          |         |         \r
     7    |    8    |    9    \r
-         |         |         \r\n";
+         |         |         \r\n");
 
-
-    // since no-std, I have to do this :(
+    
     let arr: [&str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
     let arr_with_spaces: [&str; 9] = [" 1 ", " 2 ", " 3 ", " 4 ", " 5 ", " 6 ", " 7 ", " 8 ", " 9 "];
     let arr_with_parens: [&str; 9] = ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)", "(8)", "(9)"];
 
-    // have to get around compiler complaining about
-    // differntiating between &str and String, even though
-    // we can't use String at all because of no-std
-    let mut modified_board = text_board.replace(arr_with_spaces[(3*player_y + player_x) as usize], arr_with_parens[(3*player_y + player_x) as usize]);
+    // mark current player location on the board with parentheses
+    text_board = text_board.replace(arr_with_spaces[(3*player_y + player_x) as usize], arr_with_parens[(3*player_y + player_x) as usize]);
 
+    // fill in the current board state
     for i in 0..3 {
         for j in 0..3 {
-            modified_board = modified_board.replace(arr[3*i + j],
+            text_board = text_board.replace(arr[3*i + j],
                 match state[i][j] {
                     1 => "X",
                     2 => "O",
@@ -149,7 +147,7 @@ fn display_board(
         }
     }
 
-    util::print_string_literal(system_table, &modified_board);
+    util::print_string_literal(system_table, &text_board);
 }
 
 fn handle_endgame(state: [[u8; 3]; 3], _handle: Handle, system_table: &mut SystemTable<Boot>) -> () {
